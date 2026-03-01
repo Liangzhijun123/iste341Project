@@ -1,0 +1,22 @@
+{
+    "name": "iste341/bug-tracker",
+    "description": "Bug Tracker System for ISTE341 Course Project",
+    "type": "project",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "giorgiosironi/eris": "^0.14"
+    },
+    "autoload": {
+        "classmap": [
+            "tracker/classes/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

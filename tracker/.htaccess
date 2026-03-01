@@ -1,0 +1,4 @@
+SetEnv DB zl5660
+SetEnv DB_PASSWORD Scyphiform7%determinable
+SetEnv DB_SERVER localhost
+SetEnv DB_USER zl5660
