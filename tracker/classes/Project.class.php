@@ -10,8 +10,7 @@ class Project {
     // Get all projects
     public function getAllProjects() {
         $sql = "SELECT * FROM project";
-        $stmt = $this->db->query($sql);
-        return $stmt->fetchAll();
+        return $this->db->query($sql);
     }
 
     // Create new project
