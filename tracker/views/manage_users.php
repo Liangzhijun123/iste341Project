@@ -1,9 +1,19 @@
 <?php
+/**
+ * Administrative User Management Controller
+ * * This script provides a restricted interface for Administrators (Role 1) to create
+ * and remove users. It ensures that password security and bug-assignment integrity
+ * are maintained during the user lifecycle.
+ */
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
-// THE ADMIN BOUNCER: Kick out anyone who isn't Role 1 (Admin)
+/**
+ * 1. ACCESS CONTROL (THE BOUNCER)
+ * Requirement: Only Admins can add or delete users.
+ * This block verifies the session and redirects non-administrators to the dashboard.
+ */
 if (!isset($_SESSION['userId']) || $_SESSION['roleId'] != 1) {
     header("Location: dashboard.php"); 
     exit; 
@@ -13,10 +23,17 @@ require_once __DIR__ . "/../classes/User.class.php";
 $userObj = new User();
 $message = "";
 
-// Handle Form Submissions (Add or Delete)
+/**
+ * 2. ACTION HANDLING
+ * Processes form submissions for either adding a new user or deleting an existing one.
+ */
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
-    // ACTION: ADD USER
+    /**
+     * SUB-ACTION: ADD USER
+     * Captures user details and utilizes the User model to securely hash
+     * passwords before insertion into MySQL.
+     */
     if (isset($_POST['action']) && $_POST['action'] == 'add_user') {
         $username = trim($_POST['username']);
         $password = $_POST['password'];
@@ -24,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $roleId = $_POST['roleId'];
         
         if (!empty($username) && !empty($password) && !empty($name)) {
+            // Delegation to the Logic Tier (User class)
             $userObj->addUser($username, $password, $name, $roleId);
             $message = "<div style='color: green; margin-bottom: 15px;'>Success! New user added securely.</div>";
         } else {
@@ -31,24 +49,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
-    // ACTION: DELETE USER
+    /**
+     * SUB-ACTION: DELETE USER
+     * Requirement: Deleted users must be removed from projects and bugs, 
+     * but the bug records themselves must persist.
+     */
     if (isset($_POST['action']) && $_POST['action'] == 'delete_user') {
         $deleteId = $_POST['delete_id'];
         
-        // Prevent the Admin from accidentally deleting themselves!
+        /**
+         * SELF-DELETION SAFEGUARD
+         * Prevents the currently logged-in Admin from locking themselves 
+         * out of the system.
+         */
         if ($deleteId == $_SESSION['userId']) {
             $message = "<div style='color: red; margin-bottom: 15px;'>Error: You cannot delete your own account!</div>";
         } else {
+            // Triggers the cascading unassignment logic in User->deleteUser()
             $userObj->deleteUser($deleteId);
             $message = "<div style='color: green; margin-bottom: 15px;'>User successfully deleted and unassigned from all tasks.</div>";
         }
     }
 }
 
-// Fetch fresh list of users to display
+/**
+ * 3. REFRESH DATASET
+ * Retrieves the current list of users to populate the management table.
+ */
 $allUsers = $userObj->getAllUsers();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

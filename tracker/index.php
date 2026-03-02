@@ -1,10 +1,32 @@
 <?php
+/**
+ * Application Entry Point / Landing Page
+ * * This file serves as the gateway to the Bug Tracker. It handles the initial
+ * session handshake and determines if the user needs to authenticate or 
+ * can be fast-tracked to the dashboard.
+ */
+
+// 1. SESSION INITIALIZATION
+// Resumes the session to check for existing authentication tokens.
 session_start();
-// If the user is already logged in, send them straight to the dashboard
+
+/**
+ * 2. AUTHENTICATION CHECK (UX & Security)
+ * * If a 'userId' session variable is already set, the user has an active session.
+ * To improve the User Experience (UX), we automatically bypass the login form
+ * and redirect them directly to the dashboard.
+ */
 if (isset($_SESSION['userId'])) {
+    // Perform a header redirect to the Presentation Tier hub
     header("Location: views/dashboard.php");
     exit;
 }
+
+/**
+ * DESIGN NOTE: 
+ * If the session check fails, execution continues below (where your HTML 
+ * login form would be located), allowing the user to provide credentials.
+ */
 ?>
 <!DOCTYPE html>
 <html lang="en">

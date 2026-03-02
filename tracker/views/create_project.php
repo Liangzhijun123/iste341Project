@@ -1,9 +1,19 @@
 <?php
+/**
+ * Project Creation View
+ * * Provides an interface for Managers (Role 2) and Administrators (Role 1) 
+ * to define new project scopes. This file enforces strict Role-Based 
+ * Access Control (RBAC) to block unauthorized users.
+ */
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
-// SECURITY CHECK: Kick out unlogged users AND Regular Users (Role 3)
+/**
+ * SECURITY ENFORCEMENT
+ * Requirement: Managers and Admins can create projects; Regular Users cannot.
+ * This block verifies the session and kicks out Role 3 (Regular User) immediately.
+ */
 if (!isset($_SESSION['userId']) || $_SESSION['roleId'] == 3) {
     header("Location: dashboard.php"); 
     exit; 
@@ -14,12 +24,19 @@ $project = new Project();
 
 $message = "";
 
-// Check if the form was submitted
+/**
+ * POST-BACK PROCESSING
+ * Captures the project name from the form and delegates insertion to the logic tier.
+ */
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $projectName = trim($_POST['projectName']);
     
     if (!empty($projectName)) {
-        // We saw this function inside your Project.class.php earlier!
+        /**
+         * LOGIC TIER INTERACTION
+         * We call the createProject() method from the Project model to handle 
+         * database persistence.
+         */
         $project->createProject($projectName);
         $message = "<div style='color: green; margin-bottom: 15px;'>Success! Project created.</div>";
     } else {

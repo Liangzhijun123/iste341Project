@@ -1,45 +1,67 @@
 <?php
-// 1. TURN ON ERROR REPORTING & START THE SESSION (CRITICAL!)
+/**
+ * Main Dashboard Controller & View
+ * * This file serves as the primary landing page for authenticated users.
+ * It coordinates with the Bug and Project models to display role-specific 
+ * data and administrative actions.
+ */
+
+// 1. ENVIRONMENT & SESSION INITIALIZATION
+// Enables high-visibility error reporting for development and debugging.
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Resumes the user's session to access identification and role data.
 session_start();
 
-// 2. KICK OUT UNLOGGED USERS
+/**
+ * 2. AUTHENTICATION GUARD
+ * Ensures that only logged-in users can access the dashboard. 
+ * Redirects guests back to the landing page.
+ */
 if (!isset($_SESSION['userId'])) {
     header("Location: ../index.php"); 
     exit; 
 }
 
-// 3. LOAD DATABASE CLASSES
+// 3. DATA ACCESS LAYER INTEGRATION
+// Imports the Logic Tier classes required for data retrieval.
 require_once __DIR__ . "/../classes/Bug.class.php";
 require_once __DIR__ . "/../classes/Project.class.php";
 
 $bug = new Bug();
 $project = new Project();
 
-// 4. FETCH ROLE-BASED DATA
+/**
+ * 4. ROLE-BASED DATA RETRIEVAL (RBAC)
+ * Requirement: Regular Users see only their assigned project's bugs.
+ * Managers and Admins possess global visibility across all projects.
+ */
 if ($_SESSION['roleId'] == 3) { 
-    // Regular User sees only their project's bugs
+    // Data limited to the user's specific ProjectId stored in the session.
     $bugs = $bug->getBugsByProject($_SESSION['projectId']);
 } else { 
-    // Manager/Admin sees ALL bugs
+    // Global data retrieval for administrative roles.
     $bugs = $bug->getAllBugs();
 }
 
-// Everyone needs to see the projects
+// Universal data needed for dashboard navigation/reference.
 $projects = $project->getAllProjects();
 
-// 5. SETUP UI BADGES
+/**
+ * 5. UI DYNAMIC CONFIGURATION
+ * Determines the visual theme and labels based on the user's RoleID.
+ */
 $roleName = "Regular User";
 $badgeClass = "role-user";
 
 if ($_SESSION['roleId'] == 1) {
     $roleName = "Administrator";
-    $badgeClass = "role-admin";
+    $badgeClass = "role-admin"; // High-visibility red badge
 } elseif ($_SESSION['roleId'] == 2) {
     $roleName = "Manager";
-    $badgeClass = "role-manager";
+    $badgeClass = "role-manager"; // Purple badge
 }
 ?>
 <!DOCTYPE html>

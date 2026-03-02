@@ -1,44 +1,80 @@
 <?php
+/**
+ * Bug Details Controller & View
+ * * This file manages the display of a single bug report. It implements 
+ * a multi-layered security check to ensure users can only access bugs 
+ * within their permitted project scope.
+ */
+
+// 1. ENVIRONMENT INITIALIZATION
+// Enables comprehensive error reporting for server-side debugging.
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+
+// 2. SESSION VALIDATION
+// Resumes the session to verify the user's identity and RoleID.
 session_start();
 
-// 1. MUST BE LOGGED IN
+/**
+ * 3. AUTHENTICATION GUARD
+ * Ensures that only registered users can access the bug details page.
+ */
 if (!isset($_SESSION['userId'])) {
     header("Location: ../index.php"); 
     exit; 
 }
 
+// 4. DATA ACCESS LAYER INTEGRATION
+// Imports the Logic Tier class responsible for bug-specific data operations.
 require_once __DIR__ . "/../classes/Bug.class.php";
 $bugObj = new Bug();
 
-// 2. GRAB THE ID FROM THE URL
+/**
+ * 5. REQUEST PARAMETER VALIDATION
+ * Captures the unique bug ID from the URL query string (GET request).
+ */
 $bugId = $_GET['id'] ?? null;
 
 if (!$bugId) {
+    // Terminate execution if no ID is provided to prevent logic errors.
     die("<h2 style='text-align: center; color: red; margin-top: 50px;'>Error: No Bug ID provided.</h2>");
 }
 
-// 3. FETCH THE BUG
+/**
+ * 6. DATA RETRIEVAL
+ * Calls the Logic Tier to fetch the specific bug record from the database.
+ */
 $bug = $bugObj->getBugById($bugId);
 
 if (!$bug) {
+    // Standard error handling for non-existent records.
     die("<h2 style='text-align: center; color: red; margin-top: 50px;'>Error: Bug not found.</h2>");
 }
 
-// 4. SECURITY CHECK: Regular Users (Role 3) can ONLY view their own project's bugs!
+/**
+ * 7. HORIZONTAL SECURITY CHECK (PROJECT ISOLATION)
+ * Requirement: Regular Users (Role 3) can ONLY view bugs in their assigned project.
+ * This prevents users from "ID snooping" by manually changing the URL ID.
+ */
 if ($_SESSION['roleId'] == 3 && $bug['projectId'] != $_SESSION['projectId']) {
-    // If they are snooping, kick them back to the dashboard silently
+    // Silently redirect unauthorized users to maintain security posture.
     header("Location: dashboard.php");
     exit;
 }
 
-// 5. PERMISSION TO EDIT CHECK
+/**
+ * 8. PERMISSION LOGIC (EDIT AUTHORIZATION)
+ * Determines if the current user has the authority to modify the bug report.
+ */
 $canEdit = false;
+
+// Admins (1) and Managers (2) possess global edit authority.
 if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
-    $canEdit = true; // Admins and Managers can edit anything
-} elseif ($_SESSION['roleId'] == 3 && $bug['assignedToId'] == $_SESSION['userId']) {
-    $canEdit = true; // Users can only edit if specifically assigned to them
+    $canEdit = true; 
+} 
+// Regular Users can only edit if they are the designated assignee for this bug.
+elseif ($_SESSION['roleId'] == 3 && $bug['assignedToId'] == $_SESSION['userId']) {
+    $canEdit = true; 
 }
 ?>
 

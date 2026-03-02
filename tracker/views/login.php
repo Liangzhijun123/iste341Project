@@ -1,16 +1,39 @@
 <?php
+/**
+ * Application Entry Point - Login View
+ * * This file serves as the landing page for the Bug Tracker system.
+ * It handles initial session checks and provides the interface for 
+ * user authentication.
+ */
+
+// 1. ERROR REPORTING CONFIGURATION
+// Enables full error visibility during development to track session 
+// or header issues immediately.
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// 2. SESSION MANAGEMENT
+// Starts or resumes a session to check for existing authentication.
 session_start();
+
+/**
+ * 3. AUTHENTICATION REDIRECT
+ * If a 'userId' session variable exists, the user is already authenticated.
+ * To improve UX and security, we automatically redirect them to the dashboard 
+ * to prevent re-login attempts.
+ */
 if (isset($_SESSION['userId'])) {
     header("Location: dashboard.php");
     exit;
 }
 
-// Show error if redirected from controller
-$error = isset($_GET['error']) ? $_GET['error'] : '';
+/**
+ * 4. FEEDBACK MECHANISM
+ * Captures error messages passed back from the Login Controller (login.php) 
+ * via URL parameters to provide user-facing feedback.
+ */
+$error = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : '';
 ?>
 
 <!DOCTYPE html>

@@ -1,8 +1,18 @@
 <?php
+/**
+ * Bug Reporting View
+ * * Provides a user interface for all authenticated roles to submit new bug reports.
+ * This script ensures the reporter's identity is captured from the session 
+ * and linked as the 'owner' of the bug record.
+ */
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 session_start();
 
+/**
+ * AUTHENTICATION GUARD
+ * Ensures only logged-in users can access the reporting form.
+ */
 if (!isset($_SESSION['userId'])) {
     header("Location: ../index.php"); 
     exit; 
@@ -14,27 +24,41 @@ require_once __DIR__ . "/../classes/Project.class.php";
 $bug = new Bug();
 $projectObj = new Project();
 
-// Everyone needs the list of projects for the dropdown
+/**
+ * DATA PREPARATION
+ * Fetches all available projects from the Project model to populate the selection dropdown.
+ * This allows users to categorize the bug under the correct project scope.
+ */
 $projects = $projectObj->getAllProjects();
 $message = "";
 
+/**
+ * POST-BACK PROCESSING
+ * Handles the form submission by sanitizing input and delegating persistence 
+ * to the Logic Tier (Bug Class).
+ */
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $summary = $_POST['summary'];
-    $description = $_POST['description'];
+    // Basic sanitization of user input
+    $summary = trim($_POST['summary']);
+    $description = trim($_POST['description']);
     $projectId = $_POST['projectId'];
     $priorityId = $_POST['priorityId'];
     
-    // The currently logged in user is the owner
+    // CAPTURE OWNER: The currently logged-in user is set as the bug's creator.
     $ownerId = $_SESSION['userId']; 
 
-    // Insert directly into MySQL (Status 1 = Open by default)
-    $sql = "INSERT INTO bugs (summary, description, projectId, priorityId, statusId, ownerId, dateRaised) 
-            VALUES (?, ?, ?, ?, 1, ?, NOW())";
-            
-    // Tell the Bug class to do the heavy lifting!
-    $bug->createBug($summary, $description, $projectId, $priorityId, $ownerId);
+    /**
+     * LOGIC TIER INTERACTION
+     * Instead of running raw SQL here, we utilize the Bug class to handle 
+     * the database insertion, maintaining a clean separation of concerns.
+     */
+    $success = $bug->createBug($summary, $description, $projectId, $priorityId, $ownerId);
     
-    $message = "<div style='color: green; margin-bottom: 15px;'>Bug successfully reported! <a href='dashboard.php'>Return to Dashboard</a></div>";
+    if ($success) {
+        $message = "<div style='color: green; margin-bottom: 15px;'>Bug successfully reported! <a href='dashboard.php'>Return to Dashboard</a></div>";
+    } else {
+        $message = "<div style='color: red; margin-bottom: 15px;'>Error: Failed to save bug report.</div>";
+    }
 }
 ?>
 

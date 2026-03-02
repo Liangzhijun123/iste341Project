@@ -1,65 +1,82 @@
 <?php
+/**
+ * Bug List View
+ * * Provides a filterable interface for viewing bug reports. This file enforces 
+ * strict Role-Based Access Control (RBAC) to ensure users only see data 
+ * permitted by their role.
+ */
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 session_start();
+
+/**
+ * AUTHENTICATION GUARD
+ * Prevents unauthenticated access to the bug repository.
+ */
 if (!isset($_SESSION['userId'])) {
     header("Location: ../index.php"); 
     exit; 
 }
 
 require_once __DIR__ . "/../classes/Bug.class.php";
-require_once __DIR__ . "/../classes/Project.class.php"; // Needed for the project dropdown
+require_once __DIR__ . "/../classes/Project.class.php";
 
 $bug = new Bug();
 $projectObj = new Project();
 
-// 1. Get current filters from the URL (defaulting to 'all')
+// Capture UI filter states from the URL
 $statusFilter = $_GET['filter'] ?? 'all';
 $projectFilter = $_GET['projectId'] ?? 'all'; 
 
 $whereClauses = [];
 $params = [];
 
-// 2. PROJECT VISIBILITY RULES
+/**
+ * 1. PROJECT VISIBILITY LOGIC
+ * Regular Users (Role 3) are restricted to their specific assigned project.
+ * Admins (1) and Managers (2) possess global visibility.
+ */
 if ($_SESSION['roleId'] == 3) {
-    // Regular Users are strictly locked to their assigned project
     $whereClauses[] = "projectId = ?";
     $params[] = $_SESSION['projectId'];
 } else {
-    // Admins/Managers can see all, OR filter by a specific project from the dropdown
     if ($projectFilter != 'all') {
         $whereClauses[] = "projectId = ?";
         $params[] = $projectFilter;
     }
 }
 
-// 3. STATUS RULES (Open or Overdue)
-// Assuming statusId 3 represents "Closed/Resolved". Change if your database uses a different ID!
+/**
+ * 2. STATUS & TEMPORAL FILTERING
+ * Filters results by 'Open' status or 'Overdue' criteria based on current date.
+ */
 if ($statusFilter == 'open') {
     $whereClauses[] = "statusId != 3"; 
 } elseif ($statusFilter == 'overdue') {
     $whereClauses[] = "targetDate < NOW() AND statusId != 3";
 }
 
-// Build the final SQL string
+// Construct Dynamic Prepared Statement
 $whereSql = '';
 if (!empty($whereClauses)) {
     $whereSql = "WHERE " . implode(" AND ", $whereClauses);
 }
 
-// 4. SORTING RULE
-// "Each of these filters can be for all bugs sorted by project"
+/**
+ * 3. SORTING REQUIREMENTS
+ * Admins and Managers receive bugs sorted by Project ID for better organization.
+ */
 if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
     $whereSql .= " ORDER BY projectId ASC";
 }
 
-// Run the query!
+// Execute Data Retrieval via the Data Access Layer
 $sql = "SELECT * FROM bugs $whereSql";
 $bugs = $bug->db->query($sql, $params);
 
-// Get projects for the dropdown (Only needed for Admin/Manager)
+// Fetch projects for administrative filtering dropdown
 $projects = [];
 if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
     $projects = $projectObj->getAllProjects();
@@ -70,7 +87,7 @@ if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bugs</title>
+    <title>Bug Repository</title>
     <link rel="stylesheet" href="../assets/style.css">
     <style>
         .filter-form { background: #f4f4f4; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
@@ -79,12 +96,14 @@ if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
 </head>
 <body>
 <header>
-    <h1>Bugs</h1> 
-    <a href="dashboard.php">Dashboard</a> | 
-    <a href="../controllers/logout.php">Logout</a>
+    <h1>Bug Repository</h1> 
+    <div class="nav-links">
+        <a href="dashboard.php">Dashboard</a> | 
+        <a href="../controllers/logout.php">Logout</a>
+    </div>
 </header>
 <main>
-    <h2>Bug List</h2>
+    <h2>Filtered Bug List</h2>
     
     <div class="filter-form">
         <form method="GET" action="">
@@ -96,18 +115,18 @@ if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
             </select>
 
             <?php if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2): ?>
-                <label for="projectId">Project:</label>
+                <label for="projectId">Project Scope:</label>
                 <select name="projectId" id="projectId">
                     <option value="all" <?php if($projectFilter == 'all') echo 'selected'; ?>>All Projects</option>
                     <?php foreach($projects as $p): ?>
                         <option value="<?php echo $p['Id']; ?>" <?php if($projectFilter == $p['Id']) echo 'selected'; ?>>
-                            <?php echo $p['Project']; ?>
+                            <?php echo htmlspecialchars($p['Project']); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             <?php endif; ?>
 
-            <button type="submit">Apply Filters</button>
+            <button type="submit" class="btn">Apply Filters</button>
         </form>
     </div>
 
@@ -115,39 +134,38 @@ if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
         <tr>
             <th>ID</th>
             <th>Summary</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Actions</th> </tr>
+            <th>Status ID</th>
+            <th>Priority ID</th>
+            <th>Actions</th> 
+        </tr>
         <?php if(empty($bugs)): ?>
-            <tr><td colspan="5">No bugs found matching these filters.</td></tr>
+            <tr><td colspan="5">No bug records match the current filter criteria.</td></tr>
         <?php else: ?>
             <?php foreach($bugs as $b): ?>
                 <tr>
-                    <td><?php echo $b['id']; ?></td>
-                    <td><?php echo $b['summary']; ?></td>
+                    <td>#<?php echo $b['id']; ?></td>
+                    <td><strong><?php echo htmlspecialchars($b['summary']); ?></strong></td>
                     <td><?php echo $b['statusId']; ?></td>
                     <td><?php echo $b['priorityId']; ?></td>
                     <td>
-                        <a href="view_bug.php?id=<?php echo $b['id']; ?>">View</a> 
+                        <a href="view_bug.php?id=<?php echo $b['id']; ?>">View Details</a> 
 
                         <?php 
-                            // 5. UPDATE PERMISSIONS RULE
+                            /**
+                             * 4. DYNAMIC ACTION PERMISSIONS
+                             * Determines if the 'Edit' action should be exposed based on 
+                             * ownership or administrative role.
+                             */
                             $canEdit = false;
-                            
-                            // Admins and Managers can edit anything
                             if ($_SESSION['roleId'] == 1 || $_SESSION['roleId'] == 2) {
                                 $canEdit = true;
-                            } 
-                            // Regular Users can ONLY edit if they are the assigned person
-                            elseif ($_SESSION['roleId'] == 3 && $b['assignedToId'] == $_SESSION['userId']) {
+                            } elseif ($_SESSION['roleId'] == 3 && $b['assignedToId'] == $_SESSION['userId']) {
                                 $canEdit = true;
                             }
                             
-                            // Draw the Edit link only if they have permission
-                            if ($canEdit): 
-                        ?>
-                            | <a href="edit_bug.php?id=<?php echo $b['id']; ?>">Edit</a>
-                        <?php endif; ?>
+                            if ($canEdit): ?>
+                                | <a href="edit_bug.php?id=<?php echo $b['id']; ?>">Edit Bug</a>
+                            <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
