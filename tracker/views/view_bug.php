@@ -137,11 +137,22 @@ elseif ($_SESSION['roleId'] == 3 && $bug['assignedToId'] == $_SESSION['userId'])
         <div style="margin-bottom: 20px;">
             <span class="detail-label" style="margin-bottom: 5px;">Full Description</span>
             <div style="background: white; padding: 15px; border: 1px solid var(--border); border-radius: 4px; min-height: 80px;">
-                <?php echo nl2br(htmlspecialchars($bug['description'])); ?>
+                <?php 
+                    /** htmlspecialchars() prevents XSS attacks 
+                     * by encoding any malicious scripts the user might have entered.
+                     * nl2br() preserves line breaks from the textarea input for better readability.
+                     */
+                    echo nl2br(htmlspecialchars($bug['description'])); 
+                ?>
             </div>
         </div>
 
-        <?php if (!empty($bug['fixDescription'])): ?>
+        <?php 
+            /** * This section only renders if the bug has a recorded fix.
+             * It separates the technical resolution from the original problem description.
+             */
+            if (!empty($bug['fixDescription'])): 
+        ?>
             <div style="margin-bottom: 20px;">
                 <span class="detail-label" style="margin-bottom: 5px; color: #16a34a;">Fix Description</span>
                 <div style="background: #f0fdf4; padding: 15px; border: 1px solid #bbf7d0; border-radius: 4px; min-height: 50px;">
